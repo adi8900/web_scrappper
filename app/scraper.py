@@ -9,8 +9,30 @@ USER_AGENTS = [
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
 ]
 
+# ===== HELPERY =====
+
+def extract_model(query):
+    match = re.search(r"\b\d{3,5}[a-zA-Z]*\b", query.lower())
+    return match.group(0) if match else None
+
+
+def is_reasonable(price_str):
+    try:
+        price = float(
+            price_str.replace("zł", "").replace(",", ".").replace(" ", "").strip()
+        )
+    except:
+        return False
+
+    # filtr dziwnych cen
+    if price < 100 or price > 20000:
+        return False
+
+    return True
+
+
 async def human_delay(min_ms=1000, max_ms=3000):
-    await asyncio.sleep(random.uniform(min_ms/1000, max_ms/1000))
+    await asyncio.sleep(random.uniform(min_ms / 1000, max_ms / 1000))
 
 
 async def simulate_user(page):
@@ -44,6 +66,7 @@ def parse_xkom(soup):
 
     return None
 
+
 def parse_mediaexpert(soup):
     el = soup.select_one('div.main-price')
     if el:
@@ -61,6 +84,7 @@ def parse_mediaexpert(soup):
 
     return None
 
+
 def detect_and_parse(url, soup):
     url = url.lower()
 
@@ -75,26 +99,8 @@ def detect_and_parse(url, soup):
 
     return None
 
-# ===== X-KOM SEARCH =====
 
-async def get_first_product_xkom(page, query):
-    search_url = f"https://www.x-kom.pl/szukaj?q={query.replace(' ', '+')}"
-
-    await page.goto(search_url, timeout=60000)
-    await page.wait_for_load_state("domcontentloaded")
-
-    try:
-        await page.wait_for_selector('a[href*="/p/"]', timeout=8000)
-
-        links = await page.query_selector_all('a[href*="/p/"]')
-
-        for link in links:
-            href = await link.get_attribute("href")
-            if href and "/p/" in href:
-                return "https://www.x-kom.pl" + href
-
-    except:
-        return None
+# ===== SEARCH =====
 
 async def search_mediaexpert_and_get_price(query):
     async with async_playwright() as p:
@@ -111,19 +117,14 @@ async def search_mediaexpert_and_get_price(query):
         search_url = f"https://www.mediaexpert.pl/search?query[querystring]={query.replace(' ', '+')}"
         await page.goto(search_url)
 
-        # 🔥 poczekaj aż wszystko się ustabilizuje
         await page.wait_for_load_state("domcontentloaded")
         await asyncio.sleep(3)
-
-        current_url = page.url
-        print("MEDIA URL:", current_url)
 
         html = await page.content()
         await browser.close()
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # 🔥 CASE 1: produkt (redirect)
     el = soup.select_one('div.main-price')
     if el:
         aria = el.get("aria-label")
@@ -135,46 +136,6 @@ async def search_mediaexpert_and_get_price(query):
             match = re.search(r"(\d+)\s*złotych", aria)
             if match:
                 return f"{match.group(1)},00 zł"
-
-    # 🔥 CASE 2: lista wyników
-    price_elements = soup.select('div.main-price')
-
-    for el in price_elements:
-        aria = el.get("aria-label")
-
-        if aria:
-            match = re.search(r"(\d+)\s*złotych\s*i\s*(\d+)\s*groszy", aria)
-            if match:
-                return f"{match.group(1)},{match.group(2).zfill(2)} zł"
-
-            match = re.search(r"(\d+)\s*złotych", aria)
-            if match:
-                return f"{match.group(1)},00 zł"
-
-    return None
-
-async def get_first_product_morele(page, query):
-    search_url = f"https://www.morele.net/wyszukiwarka/?q={query.replace(' ', '+')}"
-    await page.goto(search_url)
-
-    await page.wait_for_load_state("domcontentloaded")
-    await asyncio.sleep(2)
-
-    try:
-        await page.wait_for_selector('a[href*="-p-"]', timeout=8000)
-    except:
-        return None
-
-    links = await page.query_selector_all('a[href*="-p-"]')
-
-    for link in links:
-        href = await link.get_attribute("href")
-
-        if href and "-p-" in href:
-            if href.startswith("http"):
-                return href
-            else:
-                return "https://www.morele.net" + href
 
     return None
 
@@ -201,16 +162,35 @@ async def search_morele_and_get_price(query):
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # 🔥 znajdź pierwszy produkt
-    product = soup.select_one('div.cat-product')
+    products = soup.select('div.cat-product')[:10]
 
-    if product:
-        price = product.get("data-product-price")
+    model = extract_model(query)
 
+    for p in products:
+        name = p.get("data-product-name", "")
+        price = p.get("data-product-price")
+
+        if not name or not price:
+            continue
+
+        name_lower = name.lower()
+
+        # 🔥 filtr modelu
+        if model and model not in name_lower:
+            continue
+
+        # 🔥 filtr śmieci
+        if any(x in name_lower for x in ["laptop", "zestaw", "komputer"]):
+            continue
+
+        price = price.replace(".", ",")
+        return f"{price} zł"
+
+    # 🔥 fallback (jak nic nie znajdzie)
+    for p in products:
+        price = p.get("data-product-price")
         if price:
-            # zamień na format PL
-            price = price.replace(".", ",")
-            return f"{price} zł"
+            return f"{price.replace('.', ',')} zł"
 
     return None
 
@@ -242,7 +222,6 @@ async def search_xkom_and_get_price(query):
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # 🔥 bierz pierwszy produkt z ceną
     prices = soup.select('span[aria-label*="Cena"]')
 
     for p in prices:
@@ -252,32 +231,34 @@ async def search_xkom_and_get_price(query):
 
     return None
 
+
+# ===== MAIN =====
+
 def parse_price_to_float(price_str):
-    # "539,00 zł" → 539.00
-    price = price_str.replace("zł", "").replace(",", ".").strip()
+    price = price_str.replace("zł", "").replace(",", ".").replace(" ", "").strip()
     return float(price)
+
 
 async def compare_prices(query):
     results = {}
 
-    # 🔥 zbierz ceny
     try:
         xkom_price = await search_xkom_and_get_price(query)
-        if xkom_price:
+        if xkom_price and is_reasonable(xkom_price):
             results["x-kom"] = xkom_price
     except:
         pass
 
     try:
         morele_price = await search_morele_and_get_price(query)
-        if morele_price:
+        if morele_price and is_reasonable(morele_price):
             results["morele"] = morele_price
     except:
         pass
 
     try:
         media_price = await search_mediaexpert_and_get_price(query)
-        if media_price:
+        if media_price and is_reasonable(media_price):
             results["mediaexpert"] = media_price
     except:
         pass
@@ -285,7 +266,6 @@ async def compare_prices(query):
     if not results:
         return None
 
-    # 🔥 znajdź min i max
     numeric = {
         shop: parse_price_to_float(price)
         for shop, price in results.items()
@@ -300,7 +280,8 @@ async def compare_prices(query):
         "most_expensive": most_expensive
     }
 
-# ===== GŁÓWNY SCRAPER (URL) =====
+
+# ===== SCRAPE URL =====
 
 async def scrape_price(url: str):
     for attempt in range(3):
@@ -317,25 +298,9 @@ async def scrape_price(url: str):
 
                 page = await context.new_page()
 
-                await page.add_init_script("""
-                    Object.defineProperty(navigator, 'webdriver', {
-                        get: () => undefined
-                    });
-                """)
-
                 await page.goto(url, timeout=60000)
                 await page.wait_for_load_state("domcontentloaded")
                 await human_delay(1500, 3000)
-
-                try:
-                    await page.wait_for_selector(
-                        'span[aria-label*="Cena"], div.main-price',
-                        timeout=8000
-                    )
-                except:
-                    pass
-
-                await simulate_user(page)
 
                 html = await page.content()
                 await browser.close()
