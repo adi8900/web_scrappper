@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historia</title>
+</head>
+<body>
+
+<h1>Historia wyszukiwań</h1>
+
+<table border="1">
+    <tr>
+        <th>Query</th>
+        <th>x-kom</th>
+        <th>Morele</th>
+        <th>MediaExpert</th>
+        <th>Najtaniej</th>
+    </tr>
+
+    {% for r in records %}
+    <tr>
+        <td>{{ r.query }}</td>
+        <td>{{ r.xkom }}</td>
+        <td>{{ r.morele }}</td>
+        <td>{{ r.mediaexpert }}</td>
+        <td>{{ r.cheapest }}</td>
+    </tr>
+    {% endfor %}
+
+</table>
+
+</body>
+</html>
