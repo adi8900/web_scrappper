@@ -1,5 +1,6 @@
 services:
   web:
+    shm_size: 1gb
     build: ./app
     ports:
       - "8000:8000"
