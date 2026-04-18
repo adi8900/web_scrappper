@@ -1,0 +1,41 @@
+# ===== PYTHON =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# ===== VENV =====
+venv/
+.env/
+
+# ===== NODE / NEXT =====
+node_modules/
+.next/
+out/
+dist/
+
+# ===== ENV =====
+.env
+.env.local
+.env.*.local
+
+# ===== DOCKER =====
+*.log
+docker-compose.override.yml
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== IDE =====
+.vscode/
+.idea/
+
+# ===== DATABASE =====
+*.db
+db_data/
+
+# ===== PLAYWRIGHT =====
+playwright-report/
+test-results/

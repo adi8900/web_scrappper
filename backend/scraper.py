@@ -1,3 +1,4 @@
+import json
 import re
 import random
 import asyncio
@@ -328,3 +329,41 @@ async def compare_prices(query):
         "cheapest": min(numeric, key=numeric.get),
         "most_expensive": max(numeric, key=numeric.get)
     }
+
+async def compare_prices_stream(query):
+    results = {}
+
+    # START
+    yield {"type": "status", "value": "start"}
+
+    # XKOM
+    yield {"type": "status", "value": "xkom"}
+    try:
+        x = await search_xkom_and_get_price(query)
+        if x and is_reasonable(x):
+            results["x-kom"] = x
+            yield {"type": "result", "shop": "x-kom", "price": x}
+    except Exception as e:
+        print("XKOM ERROR:", e)
+
+    # MORELE
+    yield {"type": "status", "value": "morele"}
+    try:
+        m = await search_morele_and_get_price(query)
+        if m and is_reasonable(m):
+            results["morele"] = m
+            yield {"type": "result", "shop": "morele", "price": m}
+    except Exception as e:
+        print("MORELE ERROR:", e)
+
+    # MEDIA
+    yield {"type": "status", "value": "mediaexpert"}
+    try:
+        me = await search_mediaexpert_and_get_price(query)
+        if me and is_reasonable(me):
+            results["mediaexpert"] = me
+            yield {"type": "result", "shop": "mediaexpert", "price": me}
+    except Exception as e:
+        print("MEDIA ERROR:", e)
+
+    yield {"type": "done", "results": results}
