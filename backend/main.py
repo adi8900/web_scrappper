@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from typing import Dict
 import json
 
 from database import SessionLocal, engine
@@ -26,6 +28,11 @@ def startup():
     print("DB ready")
 
 
+# ===== MODELE =====
+class BuildRequest(BaseModel):
+    parts: Dict[str, str]
+
+
 # ===== ROOT =====
 @app.get("/")
 async def root():
@@ -36,7 +43,6 @@ async def root():
 @app.get("/api/compare")
 async def compare(query: str):
 
-    # 🔥 wysyłamy taski do workerów
     x = scrape_xkom.delay(query)
     m = scrape_morele.delay(query)
     me = scrape_media.delay(query)
@@ -67,7 +73,6 @@ async def compare(query: str):
     if not results:
         return {"error": "Brak wyników"}
 
-    # 🔥 wybór min/max
     def parse(price):
         return float(price.replace("zł", "").replace(",", ".").replace(" ", ""))
 
@@ -76,7 +81,6 @@ async def compare(query: str):
     cheapest = min(numeric, key=numeric.get)
     most_expensive = max(numeric, key=numeric.get)
 
-    # 🔥 zapis do DB
     db = SessionLocal()
     try:
         record = PriceHistory(
@@ -99,10 +103,65 @@ async def compare(query: str):
     }
 
 
-# ===== STREAM (na razie zostawiamy jak było) =====
+# ===== API: BUILD PC =====
+@app.post("/api/build")
+async def build_pc(req: BuildRequest):
+
+    parts = req.parts
+
+    final = {}
+    total = 0
+
+    for part_name, query in parts.items():
+
+        x = scrape_xkom.delay(query)
+        m = scrape_morele.delay(query)
+        me = scrape_media.delay(query)
+
+        results = {}
+
+        for shop, task in {
+            "x-kom": x,
+            "morele": m,
+            "mediaexpert": me
+        }.items():
+            try:
+                res = task.get(timeout=30)
+                if res:
+                    results[shop] = res
+            except Exception as e:
+                print(f"{shop} error:", e)
+
+        if not results:
+            final[part_name] = {"error": "brak wyników"}
+            continue
+
+        def parse(price):
+            return float(price.replace("zł", "").replace(",", ".").replace(" ", ""))
+
+        numeric = {k: parse(v) for k, v in results.items()}
+
+        cheapest_shop = min(numeric, key=numeric.get)
+
+        final[part_name] = {
+            "query": query,
+            "prices": results,
+            "best_shop": cheapest_shop,
+            "price": numeric[cheapest_shop]
+        }
+
+        total += numeric[cheapest_shop]
+
+    return {
+        "parts": final,
+        "total_price": total
+    }
+
+
+# ===== STREAM (na razie off) =====
 @app.get("/api/compare-stream")
 async def compare_stream(query: str):
-    return {"info": "stream disabled with celery (zrobimy później lepiej)"}
+    return {"info": "stream disabled with celery (zrobimy później)"}
 
 
 # ===== HISTORY =====
