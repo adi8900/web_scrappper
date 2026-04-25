@@ -1,41 +1,56 @@
 services:
+
   backend:
-    shm_size: 1gb
     build: ./backend
+    shm_size: 1gb
+
     ports:
       - "8000:8000"
+
     volumes:
       - ./backend:/app
-    depends_on:
-      - db
-      - redis
+
     environment:
-      - REDIS_HOST=redis
+      REDIS_HOST: redis
+
+    depends_on:
+      - redis
+      - db
+
 
   frontend:
     build: ./frontend
+
     ports:
       - "3001:3000"
+
     depends_on:
       - backend
 
+
   redis:
     image: redis:7
+
     ports:
       - "6379:6379"
+
 
   db:
     image: mariadb:11
     restart: always
+
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: scraper
       MYSQL_USER: user
       MYSQL_PASSWORD: password
+
     ports:
       - "3306:3306"
+
     volumes:
       - db_data:/var/lib/mysql
+
 
 volumes:
   db_data:
