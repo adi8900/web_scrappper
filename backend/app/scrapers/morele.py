@@ -1,6 +1,6 @@
+import asyncio
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
-import asyncio
 
 from app.services.query_parser import (
     extract_model,
@@ -9,107 +9,137 @@ from app.services.query_parser import (
 )
 
 
+def parse_price(v):
+    return float(
+      v.replace(",",".")
+    )
 
-async def search_morele_and_get_price(query):
+
+async def search_morele_and_get_price(
+ query
+):
 
     print(
-        "\n=== MORELE START ==="
+      "\n=== MORELE START ==="
     )
 
     async with async_playwright() as p:
 
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage"
-            ]
+        browser=await p.chromium.launch(
+          headless=True,
+          args=[
+           "--no-sandbox",
+           "--disable-dev-shm-usage"
+          ]
         )
 
-        page = await browser.new_page()
+        page=await browser.new_page()
 
-
-        url = (
-            "https://www.morele.net/wyszukiwarka/"
-            f"?q={query.replace(' ','+')}"
-            "&d=0"
-            "&sort=price_asc"
+        url=(
+        "https://www.morele.net/"
+        "wyszukiwarka/,,,,,,,p,0,,,,/1/"
+        f"?q={query.replace(' ','+')}"
         )
 
         print(
-            "URL:",
-            url
+         "URL:",
+         url
         )
 
-        await page.goto(
-            url,
-            wait_until="domcontentloaded"
+        await page.goto(url)
+
+        await page.wait_for_load_state(
+         "domcontentloaded"
         )
 
-        await asyncio.sleep(
-            2
-        )
+        await asyncio.sleep(2)
 
-        html = await page.content()
+        html=await page.content()
 
         await browser.close()
 
 
-
-    soup = BeautifulSoup(
-        html,
-        "html.parser"
+    soup=BeautifulSoup(
+      html,
+      "html.parser"
     )
 
-    products = soup.select(
-        "div.cat-product"
-    )[:10]
+    products=soup.select(
+      "div.cat-product"
+    )[:15]
 
 
-    model = extract_model(
-        query
+    model=extract_model(
+      query
     )
 
 
-    for product in products:
+    best=None
+    best_price=None
 
-        name = product.get(
-            "data-product-name",
-            ""
+
+    for p in products:
+
+        name=p.get(
+          "data-product-name",
+          ""
         )
 
-        price = product.get(
-            "data-product-price"
+        price=p.get(
+          "data-product-price"
         )
-
-
-        print(
-            "[MORELE]",
-            name
-        )
-
 
         if not name or not price:
             continue
 
-
         if not is_valid_name(
-            name,
-            query
+           name,
+           query
         ):
             continue
-
 
         if model and not match_model(
-            name,
-            model
+          name,
+          model
         ):
             continue
 
 
-        return (
-            f"{price.replace('.',',')} zł"
+        link=p.select_one("a")
+        href=""
+
+        if link:
+           href=link.get(
+             "href",
+             ""
+           )
+
+        if href.startswith("/"):
+           href=(
+            "https://www.morele.net"
+            +href
+           )
+
+
+        numeric=parse_price(
+          price
         )
 
 
-    return None
+        if (
+         best_price is None
+         or numeric<best_price
+        ):
+
+          best_price=numeric
+
+          best={
+           "price":
+             f"{price.replace('.',',')} zł",
+
+           "url":
+             href
+          }
+
+
+    return best

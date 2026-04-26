@@ -46,97 +46,98 @@ def startup():
 @app.get("/")
 async def root():
     return {
-        "status": "API działa"
+        "status":"API działa"
     }
+
 
 
 def parse_price(value):
 
     return float(
         value
-        .replace("zł", "")
-        .replace(",", ".")
-        .replace(" ", "")
-        .replace("\u202f", "")
+        .replace("zł","")
+        .replace(",",".")
+        .replace(" ","")
+        .replace("\u202f","")
     )
 
 
 
 @app.get("/api/compare")
 async def compare(
-    query: str
+    query:str
 ):
 
-    x_task = scrape_xkom.delay(
-        query
-    )
-
-    morele_task = scrape_morele.delay(
-        query
-    )
-
-    media_task = scrape_media.delay(
-        query
-    )
+    x_task = scrape_xkom.delay(query)
+    m_task = scrape_morele.delay(query)
+    me_task = scrape_media.delay(query)
 
     results = {}
 
 
     try:
-        x_result = x_task.get(
+        r = x_task.get(
             timeout=30
         )
 
-        if x_result:
-            results["x-kom"] = x_result
+        if r:
+            results["x-kom"] = r
 
     except Exception as e:
         print(
-            "x-kom error:",
-            e
+          "xkom error",
+          e
         )
+
 
 
     try:
-        m_result = morele_task.get(
+        r = m_task.get(
             timeout=30
         )
 
-        if m_result:
-            results["morele"] = m_result
+        if r:
+            results["morele"] = r
 
     except Exception as e:
         print(
-            "morele error:",
-            e
+          "morele error",
+          e
         )
+
 
 
     try:
-        media_result = media_task.get(
+        r = me_task.get(
             timeout=30
         )
 
-        if media_result:
-            results["mediaexpert"] = media_result
+        if r:
+            results["mediaexpert"] = r
 
     except Exception as e:
         print(
-            "mediaexpert error:",
-            e
+          "mediaexpert error",
+          e
         )
 
 
     if not results:
         return {
-            "error":
-            "Brak wyników"
+          "error":
+          "Brak wyników"
         }
 
 
     numeric = {
-        shop: parse_price(price)
-        for shop, price in results.items()
+
+        shop:
+        parse_price(
+            data["price"]
+        )
+
+        for shop,data
+        in results.items()
     }
 
 
@@ -144,6 +145,7 @@ async def compare(
         numeric,
         key=numeric.get
     )
+
 
     most_expensive = max(
         numeric,
@@ -157,21 +159,31 @@ async def compare(
 
         row = PriceHistory(
             query=query,
-            xkom=results.get(
-                "x-kom"
+
+            xkom=(
+             results["x-kom"]["price"]
+             if "x-kom" in results
+             else None
             ),
-            morele=results.get(
-                "morele"
+
+            morele=(
+             results["morele"]["price"]
+             if "morele" in results
+             else None
             ),
-            mediaexpert=results.get(
-                "mediaexpert"
+
+            mediaexpert=(
+             results["mediaexpert"]["price"]
+             if "mediaexpert" in results
+             else None
             ),
+
             cheapest=cheapest,
             most_expensive=most_expensive
         )
 
         db.add(
-            row
+          row
         )
 
         db.commit()
@@ -181,10 +193,18 @@ async def compare(
 
 
     return {
-        "query": query,
-        "results": results,
-        "cheapest": cheapest,
-        "most_expensive": most_expensive
+
+      "query":
+       query,
+
+      "results":
+       results,
+
+      "cheapest":
+       cheapest,
+
+      "most_expensive":
+       most_expensive
     }
 
 
@@ -192,18 +212,18 @@ async def compare(
 @app.get("/api/history")
 async def history():
 
-    db = SessionLocal()
+    db=SessionLocal()
 
     try:
 
-        rows = (
-            db.query(
-                PriceHistory
-            )
-            .order_by(
-                PriceHistory.id.desc()
-            )
-            .all()
+        rows=(
+          db.query(
+             PriceHistory
+          )
+          .order_by(
+             PriceHistory.id.desc()
+          )
+          .all()
         )
 
     finally:
@@ -211,24 +231,27 @@ async def history():
 
 
     return [
-        {
-            "query": r.query,
-            "xkom": r.xkom,
-            "morele": r.morele,
-            "mediaexpert": r.mediaexpert,
-            "cheapest": r.cheapest,
-            "most_expensive": r.most_expensive
-        }
 
-        for r in rows
+      {
+        "query":
+           r.query,
+
+        "xkom":
+           r.xkom,
+
+        "morele":
+           r.morele,
+
+        "mediaexpert":
+           r.mediaexpert,
+
+        "cheapest":
+           r.cheapest,
+
+        "most_expensive":
+           r.most_expensive
+      }
+
+      for r in rows
+
     ]
-
-
-@app.get("/api/compare-stream")
-async def compare_stream(
-    query: str
-):
-    return {
-        "info":
-        "stream disabled"
-    }

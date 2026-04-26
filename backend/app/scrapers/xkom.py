@@ -1,13 +1,22 @@
-import re
-
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 from app.services.query_parser import (
     extract_model,
+    detect_category,
+    category_match,
     match_model,
     is_valid_name
 )
+
+
+def parse_price(v):
+    return float(
+        v.replace("zł","")
+         .replace(",",".")
+         .replace(" ","")
+         .replace("\u202f","")
+    )
 
 
 async def search_xkom_and_get_price(query):
@@ -26,70 +35,80 @@ async def search_xkom_and_get_price(query):
 
         page = await browser.new_page()
 
-        url = (
-            "https://www.x-kom.pl/szukaj"
-            f"?q={query.replace(' ','+')}"
+        url=(
+            "https://www.x-kom.pl/szukaj?"
+            f"q={query.replace(' ','+')}"
             "&sort_by=price_asc"
         )
 
-        print("URL:", url)
+        print("URL:",url)
 
-        await page.goto(
-            url,
-            wait_until="domcontentloaded"
+        await page.goto(url)
+
+        await page.wait_for_load_state(
+            "domcontentloaded"
         )
 
-        html = await page.content()
+        html=await page.content()
 
         await browser.close()
 
 
-    soup = BeautifulSoup(
+    soup=BeautifulSoup(
         html,
         "html.parser"
     )
 
-    prices = soup.select(
-        'span[aria-label*="Cena"]'
-    )
 
-    model = extract_model(
-        query
+    cards=soup.select(
+      'div[class*="sc-"]'
     )
 
 
-    for price_box in prices[:8]:
+    model=extract_model(
+      query
+    )
 
-        text = price_box.get(
-            "aria-label"
+    category=detect_category(
+      query
+    )
+
+
+    best=None
+    best_price=None
+    checked=0
+
+
+    for card in cards:
+
+        if checked>=15:
+            break
+
+
+        link=card.select_one(
+           'a[href*="/p/"]'
         )
 
-        if not text:
+        price_el=card.select_one(
+           'span[aria-label*="Cena"]'
+        )
+
+
+        if not link or not price_el:
             continue
 
 
-        parent = price_box.find_parent()
-
-        title = (
-            parent.find_previous(
-                "h3"
-            )
-            if parent
-            else None
+        name=link.get_text(
+            strip=True
         )
 
-        name = (
-            title.get_text(
-                strip=True
-            )
-            if title
-            else ""
-        )
+        if not name:
+            continue
 
 
         print(
-            "[XKOM]",
-            name
+          "[XKOM]",
+          name
         )
 
 
@@ -107,14 +126,60 @@ async def search_xkom_and_get_price(query):
             continue
 
 
-        return (
-            text
-            .replace(
-                "Cena:",
-                ""
+        if not category_match(
+            name,
+            category
+        ):
+            continue
+
+
+        checked+=1
+
+
+        href=link.get(
+            "href",
+            ""
+        )
+
+        if href.startswith("/"):
+            href=(
+             "https://www.x-kom.pl"
+             +href
             )
-            .strip()
+
+
+        price=(
+          price_el
+          .get("aria-label")
+          .replace(
+             "Cena:",
+             ""
+          )
+          .strip()
         )
 
 
-    return None
+        numeric=parse_price(
+          price
+        )
+
+
+        if (
+          best_price is None
+          or numeric<best_price
+        ):
+
+            best_price=numeric
+
+            best={
+               "price":price,
+               "url":href
+            }
+
+
+    print(
+      "BEST:",
+      best
+    )
+
+    return best

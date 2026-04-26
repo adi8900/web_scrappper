@@ -1,12 +1,14 @@
-import random
 import asyncio
+import random
 
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 
 from app.services.query_parser import (
+    USER_AGENTS,
     extract_model,
     detect_category,
+    category_match,
     match_model,
     is_valid_name,
     parse_price
@@ -14,150 +16,151 @@ from app.services.query_parser import (
 
 
 
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-]
+def price_to_float(v):
+    return float(
+        v.replace("zł","")
+         .replace(",",".")
+         .replace(" ","")
+         .replace("\u202f","")
+    )
 
 
 
 async def search_mediaexpert_and_get_price(
-    query
+ query
 ):
 
     print(
-        "\n=== MEDIA START ==="
+      "\n=== MEDIA START ==="
     )
+
 
     async with async_playwright() as p:
 
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage"
-            ]
+        browser=await p.chromium.launch(
+           headless=True,
+           args=[
+             "--no-sandbox",
+             "--disable-dev-shm-usage"
+           ]
         )
 
 
-        context = await browser.new_context(
-            user_agent=random.choice(
-                USER_AGENTS
-            ),
-            viewport={
-                "width":1366,
-                "height":768
-            },
-            locale="pl-PL"
+        context=await browser.new_context(
+           user_agent=random.choice(
+              USER_AGENTS
+           )
         )
 
-        page = await context.new_page()
+
+        page=await context.new_page()
 
 
-        url = (
-            "https://www.mediaexpert.pl/search"
-            f"?query[querystring]={query.replace(' ','+')}"
-            "&sort=price_asc"
+        url=(
+         "https://www.mediaexpert.pl/search?"
+         f"query[querystring]={query.replace(' ','+')}"
+         "&sort=price_asc"
         )
-
 
         print(
-            "URL:",
-            url
+          "URL:",
+          url
         )
 
 
-        await page.goto(
-            url,
-            wait_until="domcontentloaded"
+        await page.goto(url)
+
+        await page.wait_for_load_state(
+            "domcontentloaded"
         )
 
-        await asyncio.sleep(
-            2
+        await asyncio.sleep(2)
+
+        await page.mouse.wheel(
+            0,
+            4000
         )
 
-
-        for _ in range(3):
-
-            await page.mouse.wheel(
-                0,
-                2500
-            )
-
-            await asyncio.sleep(
-                1
-            )
+        await asyncio.sleep(1)
 
 
-        final_url = page.url
+        final_url=page.url
 
         print(
-            "FINAL URL:",
-            final_url
+          "FINAL URL:",
+          final_url
         )
 
 
-        html = await page.content()
+        html=await page.content()
 
         await browser.close()
 
 
-    soup = BeautifulSoup(
-        html,
-        "html.parser"
+    soup=BeautifulSoup(
+      html,
+      "html.parser"
     )
 
 
     if "/search?" not in final_url:
 
-        price_el = soup.select_one(
-            "div.main-price"
+        price_el=soup.select_one(
+          "div.main-price"
         )
 
         if not price_el:
             return None
 
-        return parse_price(
-            price_el.get(
-                "aria-label"
-            )
-        )
+
+        return {
+          "price":
+             parse_price(
+                price_el.get(
+                  "aria-label"
+                )
+             ),
+
+          "url":
+             final_url
+        }
 
 
-    products = soup.select(
-        "div.offer-box"
+
+    products=soup.select(
+       "div.offer-box"
+    )[:15]
+
+
+    model=extract_model(
+      query
+    )
+
+    category=detect_category(
+      query
     )
 
 
-    category = detect_category(
-        query
-    )
-
-    model = extract_model(
-        query
-    )
+    offers=[]
 
 
     for product in products:
 
-        name_el = product.select_one(
-            "h3.name a"
+        name_el=product.select_one(
+          "h3.name a"
         )
 
         if not name_el:
             continue
 
 
-        name = name_el.get_text(
-            strip=True
+        name=name_el.get_text(
+           strip=True
         )
 
-        name_lower = name.lower()
-
-
         print(
-            "[MEDIA]",
-            name
+          "[MEDIA]",
+          name
         )
 
 
@@ -168,41 +171,6 @@ async def search_mediaexpert_and_get_price(
             continue
 
 
-        if category == "gpu":
-            if not any(
-                x in name_lower
-                for x in [
-                    "rtx",
-                    "radeon",
-                    "geforce"
-                ]
-            ):
-                continue
-
-
-        if category == "ram":
-            if not any(
-                x in name_lower
-                for x in [
-                    "ram",
-                    "ddr"
-                ]
-            ):
-                continue
-
-
-        if category == "ssd":
-            if not any(
-                x in name_lower
-                for x in [
-                    "ssd",
-                    "nvme",
-                    "m.2"
-                ]
-            ):
-                continue
-
-
         if model and not match_model(
             name,
             model
@@ -210,43 +178,58 @@ async def search_mediaexpert_and_get_price(
             continue
 
 
-        price_el = product.select_one(
-            "div.main-price"
+        if not category_match(
+            name,
+            category
+        ):
+            continue
+
+
+        price_el=product.select_one(
+           "div.main-price"
         )
 
         if not price_el:
             continue
 
 
-        price = parse_price(
-            price_el.get(
-                "aria-label"
-            )
+        price=parse_price(
+           price_el.get(
+             "aria-label"
+           )
         )
 
-        if price:
-            return price
-
-
-
-    for product in products:
-
-        price_el = product.select_one(
-            "div.main-price"
-        )
-
-        if not price_el:
+        if not price:
             continue
 
 
-        price = parse_price(
-            price_el.get(
-                "aria-label"
-            )
+        href=name_el.get(
+          "href",
+          ""
         )
 
-        if price:
-            return price
+
+        if href.startswith("/"):
+           href=(
+             "https://www.mediaexpert.pl"
+             +href
+           )
 
 
-    return None
+        offers.append({
+            "price":price,
+            "url":href
+        })
+
+
+    if not offers:
+        return None
+
+
+    return min(
+        offers,
+        key=lambda x:
+           price_to_float(
+              x["price"]
+           )
+    )
