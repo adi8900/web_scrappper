@@ -1,74 +1,73 @@
 services:
-
   backend:
     build: ./backend
-
     shm_size: 1gb
-
     ports:
       - "8000:8000"
-
     volumes:
       - ./backend:/app
-
     env_file:
       - .env
-
     environment:
       REDIS_HOST: ${REDIS_HOST}
-
     depends_on:
       - redis
       - db
-
-
+      - ollama
 
   frontend:
     build:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-
     env_file:
       - .env
-
     ports:
       - "3001:3000"
-
     depends_on:
       - backend
 
-
-
   redis:
     image: redis:7
-
     ports:
       - "6379:6379"
 
-
-
   db:
     image: mariadb:11
-
     restart: always
-
     env_file:
       - .env
-
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-
     ports:
       - "3306:3306"
-
     volumes:
       - db_data:/var/lib/mysql
 
-
+  ollama:
+    image: ollama/ollama:0.40.0-rocm
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    environment:
+      HSA_OVERRIDE_GFX_VERSION: ${HSA_OVERRIDE_GFX_VERSION}
+      OLLAMA_HOST: ${OLLAMA_HOST}
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    volumes:
+      - ollama_data:/root/.ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "ollama serve &
+      sleep 5 &&
+      ollama pull ${OLLAMA_MODEL} &&
+      wait"
 
 volumes:
   db_data:
+  ollama_data:
