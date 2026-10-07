@@ -190,51 +190,49 @@ def is_valid_name(
     return True
 
 
-
 def parse_price(aria):
 
     if not aria:
         return None
 
+    aria = aria.lower()
 
-    match=re.search(
-      r"([\d\s]+)\s*złotych\s*i\s*(\d+)\s*groszy",
-      aria
+    match = re.search(
+        r"([\d\s]+)\s*złot(?:e|ych)\s*i\s*(\d+)\s*groszy",
+        aria
     )
 
     if match:
 
-        whole=match.group(
-          1
+        whole = match.group(
+            1
         ).replace(
-          " ",
-          ""
+            " ",
+            ""
         )
 
-        cents=match.group(
-          2
+        cents = match.group(
+            2
         ).zfill(
-          2
+            2
         )
 
         return f"{whole},{cents} zł"
 
-
-    match=re.search(
-      r"([\d\s]+)\s*złotych",
-      aria
+    match = re.search(
+        r"([\d\s]+)\s*złot(?:e|ych)",
+        aria
     )
 
     if match:
 
-        whole=match.group(
-          1
+        whole = match.group(
+            1
         ).replace(
-          " ",
-          ""
+            " ",
+            ""
         )
 
         return f"{whole},00 zł"
-
 
     return None
