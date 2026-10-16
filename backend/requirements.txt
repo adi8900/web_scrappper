@@ -6,3 +6,6 @@ sqlalchemy
 pymysql
 celery
 redis
+python-jose[cryptography]
+bcrypt
+python-multipart

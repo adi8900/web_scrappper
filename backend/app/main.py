@@ -1,20 +1,31 @@
-from fastapi import FastAPI
+from fastapi import (
+    FastAPI,
+    Depends,
+)
+
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.database import (
     SessionLocal,
-    engine
+    engine,
 )
 
 from app.models.price_history import (
     Base,
-    PriceHistory
+    PriceHistory,
+)
+
+from app.models.user import User
+
+from app.api.auth import (
+    router as auth_router,
+    get_current_user,
 )
 
 from app.workers.tasks import (
     scrape_xkom,
     scrape_morele,
-    scrape_media
+    scrape_media,
 )
 
 
@@ -32,8 +43,14 @@ app.add_middleware(
 )
 
 
+app.include_router(
+    auth_router
+)
+
+
 @app.on_event("startup")
 def startup():
+
     Base.metadata.create_all(
         bind=engine
     )
@@ -45,37 +62,47 @@ def startup():
 
 @app.get("/")
 async def root():
-    return {
-        "status":"API działa"
-    }
 
+    return {
+        "status": "API działa"
+    }
 
 
 def parse_price(value):
 
     return float(
         value
-        .replace("zł","")
-        .replace(",",".")
-        .replace(" ","")
-        .replace("\u202f","")
+        .replace("zł", "")
+        .replace(",", ".")
+        .replace(" ", "")
+        .replace("\u202f", "")
     )
-
 
 
 @app.get("/api/compare")
 async def compare(
-    query:str
+    query: str,
+    user: User = Depends(
+        get_current_user
+    ),
 ):
 
-    x_task = scrape_xkom.delay(query)
-    m_task = scrape_morele.delay(query)
-    me_task = scrape_media.delay(query)
+    x_task = scrape_xkom.delay(
+        query
+    )
+
+    m_task = scrape_morele.delay(
+        query
+    )
+
+    me_task = scrape_media.delay(
+        query
+    )
 
     results = {}
 
-
     try:
+
         r = x_task.get(
             timeout=30
         )
@@ -84,14 +111,15 @@ async def compare(
             results["x-kom"] = r
 
     except Exception as e:
+
         print(
-          "xkom error",
-          e
+            "xkom error",
+            e
         )
 
 
-
     try:
+
         r = m_task.get(
             timeout=30
         )
@@ -100,14 +128,15 @@ async def compare(
             results["morele"] = r
 
     except Exception as e:
+
         print(
-          "morele error",
-          e
+            "morele error",
+            e
         )
 
 
-
     try:
+
         r = me_task.get(
             timeout=30
         )
@@ -116,16 +145,17 @@ async def compare(
             results["mediaexpert"] = r
 
     except Exception as e:
+
         print(
-          "mediaexpert error",
-          e
+            "mediaexpert error",
+            e
         )
 
 
     if not results:
+
         return {
-          "error":
-          "Brak wyników"
+            "error": "Brak wyników"
         }
 
 
@@ -136,8 +166,9 @@ async def compare(
             data["price"]
         )
 
-        for shop,data
+        for shop, data
         in results.items()
+
     }
 
 
@@ -158,100 +189,109 @@ async def compare(
     try:
 
         row = PriceHistory(
+
+            user_id=user.id,
+
             query=query,
 
             xkom=(
-             results["x-kom"]["price"]
-             if "x-kom" in results
-             else None
+                results["x-kom"]["price"]
+                if "x-kom" in results
+                else None
             ),
 
             morele=(
-             results["morele"]["price"]
-             if "morele" in results
-             else None
+                results["morele"]["price"]
+                if "morele" in results
+                else None
             ),
 
             mediaexpert=(
-             results["mediaexpert"]["price"]
-             if "mediaexpert" in results
-             else None
+                results["mediaexpert"]["price"]
+                if "mediaexpert" in results
+                else None
             ),
 
             cheapest=cheapest,
-            most_expensive=most_expensive
+
+            most_expensive=most_expensive,
+
         )
 
-        db.add(
-          row
-        )
+        db.add(row)
 
         db.commit()
 
     finally:
+
         db.close()
 
 
     return {
 
-      "query":
-       query,
+        "query": query,
 
-      "results":
-       results,
+        "results": results,
 
-      "cheapest":
-       cheapest,
+        "cheapest": cheapest,
 
-      "most_expensive":
-       most_expensive
+        "most_expensive": most_expensive,
+
     }
 
 
-
 @app.get("/api/history")
-async def history():
+async def history(
+    user: User = Depends(
+        get_current_user
+    ),
+):
 
-    db=SessionLocal()
+    db = SessionLocal()
 
     try:
 
-        rows=(
-          db.query(
-             PriceHistory
-          )
-          .order_by(
-             PriceHistory.id.desc()
-          )
-          .all()
+        rows = (
+            db.query(
+                PriceHistory
+            )
+            .filter(
+                PriceHistory.user_id
+                == user.id
+            )
+            .order_by(
+                PriceHistory.id.desc()
+            )
+            .all()
         )
 
     finally:
+
         db.close()
 
 
     return [
 
-      {
-        "query":
-           r.query,
+        {
 
-        "xkom":
-           r.xkom,
+            "query": r.query,
 
-        "morele":
-           r.morele,
+            "xkom": r.xkom,
 
-        "mediaexpert":
-           r.mediaexpert,
+            "morele": r.morele,
 
-        "cheapest":
-           r.cheapest,
+            "mediaexpert": r.mediaexpert,
 
-        "most_expensive":
-           r.most_expensive
-      }
+            "cheapest": r.cheapest,
 
-      for r in rows
+            "most_expensive":
+                r.most_expensive,
+
+            "created_at":
+                r.created_at.isoformat(),
+
+        }
+
+        for r in rows
 
     ]
