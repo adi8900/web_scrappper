@@ -3,52 +3,9 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 from html import escape
 from urllib.parse import quote
 from math import ceil
+from products import PRODUCTS, PRICES
 
 app = FastAPI(title="PC Parts Test Shops")
-
-PRODUCTS = [
-    {"id": 1, "name": "AMD Ryzen 5 7500F"},
-    {"id": 2, "name": "AMD Ryzen 7 7700"},
-    {"id": 3, "name": "AMD Ryzen 7 7800X3D"},
-    {"id": 4, "name": "NVIDIA GeForce RTX 4070 12GB"},
-    {"id": 5, "name": "AMD Radeon RX 7800 XT 16GB"},
-    {"id": 6, "name": "Kingston Fury DDR5 32GB 6000MHz"},
-    {"id": 7, "name": "Lexar NM790 NVMe 1TB"},
-    {"id": 8, "name": "Samsung 990 PRO NVMe 2TB"},
-]
-
-PRICES = {
-    "a": {
-        1: 599.00,
-        2: 899.99,
-        3: 1399.00,
-        4: 2399.00,
-        5: 2199.99,
-        6: 429.00,
-        7: 299.99,
-        8: 699.00,
-    },
-    "b": {
-        1: 579.99,
-        2: 929.00,
-        3: 1449.00,
-        4: 2349.00,
-        5: 2249.00,
-        6: 409.99,
-        7: 319.00,
-        8: 679.00,
-    },
-    "c": {
-        1: 619.00,
-        2: 879.00,
-        3: 1379.00,
-        4: 2449.99,
-        5: 2149.00,
-        6: 449.00,
-        7: 289.00,
-        8: 729.00,
-    },
-}
 
 SHOP_STYLES = {
     "a": {
@@ -210,7 +167,7 @@ def search_products(shop, q, page):
         )
     ]
 
-    per_page = 4
+    per_page = 40
     total_pages = max(1, ceil(len(matched) / per_page))
     page = min(page, total_pages)
 
