@@ -14,8 +14,6 @@ from app.scrapers.mediaexpert import (
     search_mediaexpert_and_get_price
 )
 
-
-
 @celery.task(
     name="app.workers.tasks.scrape_xkom",
     queue="xkom"

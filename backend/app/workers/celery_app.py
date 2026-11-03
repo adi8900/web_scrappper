@@ -28,5 +28,8 @@ celery.conf.task_routes = {
     },
     "app.workers.tasks.scrape_shop_c": {
         "queue": "shop_c"
+    },
+    "app.workers.tasks.scrape_catalog": {
+        "queue": "catalog"
     }
 }
