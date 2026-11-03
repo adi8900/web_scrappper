@@ -5,13 +5,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import SessionLocal, engine
 from app.models.price_history import Base, PriceHistory
 from app.models.user import User
+from concurrent.futures import ThreadPoolExecutor
 
 from app.api.auth import (
     router as auth_router,
     get_current_user,
 )
 
-from app.workers.tasks import scrape_shop_a
+from app.workers.tasks import (
+    scrape_shop_a,
+    scrape_shop_b,
+    scrape_shop_c,
+)
 
 
 app = FastAPI(title="PC Parts Price API")
@@ -56,19 +61,38 @@ def compare(
     query: str,
     user: User = Depends(get_current_user),
 ):
-    # Wysłanie zadania do kolejki shop_a
-    shop_a_task = scrape_shop_a.delay(query)
+    tasks = {
+        "shop_a": scrape_shop_a.delay(query),
+        "shop_b": scrape_shop_b.delay(query),
+        "shop_c": scrape_shop_c.delay(query),
+    }
 
     results = {}
 
-    try:
-        result = shop_a_task.get(timeout=60)
+    def fetch_result(item):
+        shop, task = item
 
-        if result and result.get("price"):
-            results["shop_a"] = result
+        try:
+            result = task.get(timeout=60)
 
-    except Exception as e:
-        print("shop_a error:", e)
+            if result and result.get("price"):
+                parse_price(result["price"])
+                return shop, result
+
+        except Exception as e:
+            print(f"{shop} error: {e}")
+
+        return shop, None
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        completed = executor.map(
+            fetch_result,
+            tasks.items(),
+        )
+
+        for shop, result in completed:
+            if result:
+                results[shop] = result
 
     if not results:
         return {
@@ -84,20 +108,12 @@ def compare(
         for shop, data in results.items()
     }
 
-    cheapest = min(numeric, key=numeric.get)
-    most_expensive = max(numeric, key=numeric.get)
-
-    # Na razie nie zapisujemy wyniku do PriceHistory.
-    # Model bazy danych zostanie dostosowany
-    # po dodaniu sklepów B i C.
-
     return {
         "query": query,
         "results": results,
-        "cheapest": cheapest,
-        "most_expensive": most_expensive,
+        "cheapest": min(numeric, key=numeric.get),
+        "most_expensive": max(numeric, key=numeric.get),
     }
-
 
 @app.get("/api/history")
 async def history(

@@ -64,3 +64,21 @@ def scrape_shop_a(query):
     raise RuntimeError(
         "Zadanie scrape_shop_a musi zostać wykonane przez zdalny worker"
     )
+
+@celery.task(
+    name="app.workers.tasks.scrape_shop_b",
+    queue="shop_b"
+)
+def scrape_shop_b(query):
+    raise RuntimeError(
+        "Zadanie scrape_shop_b musi zostać wykonane przez zdalny worker"
+    )
+
+@celery.task(
+    name="app.workers.tasks.scrape_shop_c",
+    queue="shop_c"
+)
+def scrape_shop_c(query):
+    raise RuntimeError(
+        "Zadanie scrape_shop_c musi zostać wykonane przez zdalny worker"
+    )
