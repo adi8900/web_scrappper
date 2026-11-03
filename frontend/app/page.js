@@ -1,67 +1,58 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import SearchBox from "@/components/SearchBox"
-import { comparePart, getMe } from "@/lib/api"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import SearchBox from "@/components/SearchBox";
+import { comparePart, getMe } from "@/lib/api";
 
 export default function Home() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  const router = useRouter()
+  const router = useRouter();
 
   async function search(query) {
-
     if (!query?.trim()) {
-      return
+      return;
     }
 
     try {
-      // Sprawdź, czy użytkownik jest zalogowany
-      await getMe()
-    } catch {
-      router.push("/login")
-      return
-    }
+      const user = await getMe();
 
-    setLoading(true)
-    setData(null)
-
-    try {
-
-      const result = await comparePart(query)
-
-      setData(result)
-
+      if (!user) {
+        router.push("/login");
+        return;
+      }
     } catch (error) {
+      console.error("Błąd autoryzacji:", error);
+      router.push("/login");
+      return;
+    }
 
-      console.error("Błąd porównywania:", error)
+    setLoading(true);
+    setData(null);
 
+    try {
+      const result = await comparePart(query);
+
+      setData(result);
+    } catch (error) {
+      console.error("Błąd porównywania:", error);
     } finally {
-
-      setLoading(false)
-
+      setLoading(false);
     }
   }
 
   return (
-
     <div className="space-y-12">
-
       <div>
-
         <h1 className="text-6xl font-bold mb-6">
           Porównywarka cen podzespołów
         </h1>
 
-        <p className="text-zinc-400 mb-8">
-          X-Kom • Morele • Media Expert
-        </p>
+        <p className="text-zinc-400 mb-8">Sklep testowy A</p>
 
         <div className="flex gap-3 mb-8 flex-wrap">
-
           <button
             onClick={() => search("ryzen 7500f")}
             className="px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition"
@@ -89,70 +80,54 @@ export default function Home() {
           >
             SSD
           </button>
-
         </div>
 
         <SearchBox onSearch={search} />
-
       </div>
 
       {loading && (
-
         <div className="text-center text-zinc-400 py-10">
           Wyszukiwanie ofert...
         </div>
-
       )}
 
       {data?.results && (
-
         <>
-
           <div className="grid md:grid-cols-3 gap-6">
-
-            {Object.entries(data.results).map(
-              ([shop, item]) => (
-
-                <div
-                  key={shop}
-                  className="
+            {Object.entries(data.results).map(([shop, item]) => (
+              <div
+                key={shop}
+                className="
                     border
                     border-zinc-800
                     rounded-3xl
                     p-8
                     bg-zinc-900
                   "
-                >
+              >
+                <h2 className="text-2xl font-bold">{shop}</h2>
 
-                  <h2 className="text-2xl font-bold">
-                    {shop}
-                  </h2>
+                <p className="text-4xl mt-4 mb-4">{item.price}</p>
 
-                  <p className="text-4xl mt-4 mb-4">
-                    {item.price}
-                  </p>
-
-                  {shop === data.cheapest && (
-
-                    <div
-                      className="
+                {shop === data.cheapest && (
+                  <div
+                    className="
                         inline-block
                         mb-4
                         px-3 py-1
                         rounded-full
                         bg-green-900
                       "
-                    >
-                      Najtaniej
-                    </div>
+                  >
+                    Najtaniej
+                  </div>
+                )}
 
-                  )}
-
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="
                       block
                       mt-4
                       text-center
@@ -164,15 +139,11 @@ export default function Home() {
                       hover:bg-zinc-200
                       transition
                     "
-                  >
-                    Przejdź do oferty
-                  </a>
-
-                </div>
-
-              )
-            )}
-
+                >
+                  Przejdź do oferty
+                </a>
+              </div>
+            ))}
           </div>
 
           <div
@@ -184,38 +155,28 @@ export default function Home() {
               border-zinc-800
             "
           >
-
-            <h2 className="
+            <h2
+              className="
               text-2xl
               mb-4
               font-semibold
-            ">
+            "
+            >
               Analiza
             </h2>
 
             <p>
               Najtaniej:
-
-              <strong className="ml-2">
-                {data.cheapest}
-              </strong>
+              <strong className="ml-2">{data.cheapest}</strong>
             </p>
 
             <p>
               Najdrożej:
-
-              <strong className="ml-2">
-                {data.most_expensive}
-              </strong>
+              <strong className="ml-2">{data.most_expensive}</strong>
             </p>
-
           </div>
-
         </>
-
       )}
-
     </div>
-
-  )
+  );
 }

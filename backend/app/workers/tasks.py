@@ -55,3 +55,12 @@ def scrape_media(query):
             query
         )
     )
+
+@celery.task(
+    name="app.workers.tasks.scrape_shop_a",
+    queue="shop_a"
+)
+def scrape_shop_a(query):
+    raise RuntimeError(
+        "Zadanie scrape_shop_a musi zostać wykonane przez zdalny worker"
+    )
