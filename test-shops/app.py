@@ -1,5 +1,6 @@
 """Three distinct simulated stores, backed by one reproducible hardware catalogue."""
 from html import escape
+import json
 from math import ceil
 from urllib.parse import urlencode
 
@@ -84,9 +85,11 @@ def render_card(shop, item):
     price = money(PRICES[shop][p["id"]])
     label = escape(p["category"])
     variation = '<div class="muted">Powielona oferta testowa</div>' if p["benchmark_offer"] else ''
+    metadata = escape(json.dumps(p["specs"], ensure_ascii=False), quote=True)
+    sku = escape(p["sku"], quote=True)
     specs = " • ".join(f"{escape(str(k))}: {escape(str(v))}" for k, v in list(p["specs"].items())[:2])
     if shop == "a":
-        return f"""<article class="product" data-product-id="{p['product_id']}" data-listing-id="{p['id']}">
+        return f"""<article class="product" data-product-id="{p['product_id']}" data-listing-id="{p['id']}" data-specs="{metadata}" data-sku="{sku}">
 <div class="visual">{label}</div><div class="category">{label}</div>
 <h3 class="product-name">{title}</h3><div class="muted">{specs}</div>{variation}
 <div class="price">{price}</div><span class="stock">● Dostępny ({p['stock']} szt.)</span>
