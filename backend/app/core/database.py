@@ -1,51 +1,16 @@
-import time
-
+import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import (
-    sessionmaker,
-    declarative_base
-)
+from sqlalchemy.orm import declarative_base, sessionmaker
 
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    user = os.getenv("MYSQL_USER", "user")
+    password = os.getenv("MYSQL_PASSWORD", "password")
+    database = os.getenv("MYSQL_DATABASE", "scraper")
+    host = os.getenv("DB_HOST", "db")
+    from urllib.parse import quote_plus
+    DATABASE_URL = f"mysql+pymysql://{quote_plus(user)}:{quote_plus(password)}@{host}:3306/{database}"
 
-DATABASE_URL = (
-    "mysql+pymysql://"
-    "user:password@db:3306/scraper"
-)
-
-
-engine = None
-
-
-for attempt in range(10):
-
-    try:
-        engine = create_engine(
-            DATABASE_URL
-        )
-
-        connection = engine.connect()
-        connection.close()
-
-        print(
-            "DB connected"
-        )
-
-        break
-
-    except Exception as e:
-
-        print(
-            "Waiting for DB...",
-            e
-        )
-
-        time.sleep(3)
-
-
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=1800)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
