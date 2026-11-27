@@ -50,6 +50,7 @@ def main():
     parser.add_argument("--pages", type=int, default=10)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--csv", default="benchmark-results.csv")
+    parser.add_argument("--label", required=True, help="Np. 1-worker / 2-workers / 3-workers")
     args = parser.parse_args()
     if not (1 <= args.pages <= 250 and 1 <= args.repeats <= 30):
         parser.error("--pages: 1–250, --repeats: 1–30")
@@ -59,10 +60,7 @@ def main():
     for index in range(args.repeats):
         result = run_benchmark(args.shop, args.pages, args.method)
         result["repetition"] = index + 1
-        result["worker_configuration"] = input(
-            "Oznaczenie konfiguracji (np. 1-worker, 2-workers, 3-workers): "
-        ).strip() if index == 0 else label
-        label = result["worker_configuration"]
+        result["worker_configuration"] = args.label
         is_new = not destination.exists() or destination.stat().st_size == 0
         with destination.open("a", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=list(result))
