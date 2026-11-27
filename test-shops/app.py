@@ -118,10 +118,11 @@ def listing(shop, q, category, page, per_page):
         f'<option value="{escape(c, quote=True)}" {"selected" if c == category else ""}>{escape(c)}</option>'
         for c in CATEGORIES
     )
-    links = "".join(
-        f'<a class="{"active" if n == page else ""}" href="/shop-{shop}?{urlencode({"q":q,"category":category,"page":n,"per_page":per_page})}">{n}</a>'
-        for n in range(max(1, page - 3), min(max_page, page + 3) + 1)
-    )
+    links = ""
+    for n in range(max(1, page - 3), min(max_page, page + 3) + 1):
+        state = "active" if n == page else ""
+        parameters = urlencode({"q": q, "category": category, "page": n, "per_page": per_page})
+        links += f'<a class="{state}" href="/shop-{shop}?{parameters}">{n}</a>'
     wrapper = {"a": 'div class="grid"', "b": 'section class="grid"', "c": 'ul class="grid"'}[shop]
     body = f"""<section class="hero"><h1>Odkryj podzespoły komputerowe</h1>
 <p>Rzeczywiste modele • specyfikacje producentów • symulowane ceny w PLN</p></section>
