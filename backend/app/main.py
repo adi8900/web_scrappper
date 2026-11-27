@@ -83,8 +83,13 @@ def group_products(completed):
 
     products = []
     for product in grouped.values():
-        # All offers refer to the same canonical product model.
-        product["offers"].sort(key=lambda x: x["price"])
+        # Compare the lowest offer per shop for each canonical model.
+        by_shop = {}
+        for offer in product["offers"]:
+            shop_id = offer["shop"]
+            if shop_id not in by_shop or offer["price"] < by_shop[shop_id]["price"]:
+                by_shop[shop_id] = offer
+        product["offers"] = sorted(by_shop.values(), key=lambda x: x["price"])
         product["cheapest"] = product["offers"][0]
         product["most_expensive"] = product["offers"][-1]
         product["shop_count"] = len({o["shop"] for o in product["offers"]})
