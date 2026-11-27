@@ -95,12 +95,12 @@ def render_card(shop, item):
 <div class="price">{price}</div><span class="stock">● Dostępny ({p['stock']} szt.)</span>
 <a class="product-link" href="{url}">Zobacz produkt →</a></article>"""
     if shop == "b":
-        return f"""<div class="offer-card" data-product-id="{p['product_id']}" data-listing-id="{p['id']}">
+        return f"""<div class="offer-card" data-product-id="{p['product_id']}" data-listing-id="{p['id']}" data-specs="{metadata}" data-sku="{sku}">
 <div class="category">OFERTA • {label}</div><div class="visual">{label}</div>
 <h3 class="offer-title">{title}</h3><div class="tags"><span class="tag">{specs}</span></div>{variation}
 <div class="offer-price">{price}</div><span class="stock">W magazynie: {p['stock']} szt.</span>
 <a class="offer-link" href="{url}">Sprawdź ofertę →</a></div>"""
-    return f"""<li class="catalog-item" data-product-id="{p['product_id']}" data-listing-id="{p['id']}">
+    return f"""<li class="catalog-item" data-product-id="{p['product_id']}" data-listing-id="{p['id']}" data-specs="{metadata}" data-sku="{sku}">
 <div class="visual">{label}</div><div class="category">{label}</div>
 <strong class="catalog-title">{title}</strong><div class="muted">{specs}</div>{variation}
 <strong class="catalog-price">{price}</strong><span class="stock">Produkt dostępny</span>
