@@ -16,18 +16,27 @@ async function request(path, options = {}) {
     },
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || `Błąd HTTP ${response.status}`);
+  if (!response.ok) {
+    const reason = typeof data.detail === "string" ? data.detail : `Błąd HTTP ${response.status}`;
+    throw new Error(reason);
+  }
   return data;
 }
 
 export async function register(username, email, password) {
-  const params = new URLSearchParams({ username, email, password });
-  return request(`/api/auth/register?${params}`, { method: "POST" });
+  return request("/api/auth/register", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({username, email, password}),
+  });
 }
 
 export async function login(username, password) {
-  const params = new URLSearchParams({ username, password });
-  const data = await request(`/api/auth/login?${params}`, { method: "POST" });
+  const data = await request("/api/auth/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({username, password}),
+  });
   if (data.access_token) {
     localStorage.setItem("access_token", data.access_token);
     localStorage.setItem("username", data.username);
