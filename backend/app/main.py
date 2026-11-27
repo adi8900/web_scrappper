@@ -1,5 +1,6 @@
 """Price comparison API for three simulated PC component shops."""
 import json
+import os
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -10,7 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import get_current_user, router as auth_router
 from app.core.database import Base, SessionLocal, engine
 from app.models.user import User
-from app.models.price_history import PriceHistory  # preserve legacy table
 from app.models.search_history import SearchHistory
 from app.workers.tasks import dispatch_search
 
@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 app = FastAPI(title="PC Parts Price API", version="2.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3001", "http://127.0.0.1:3001"],
+    allow_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3001").split(",") if origin.strip()],
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
