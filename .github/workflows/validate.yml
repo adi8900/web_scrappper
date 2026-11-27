@@ -1,0 +1,41 @@
+name: Validate thesis prototype
+
+on:
+  push:
+    branches: [new, thesis-refinement-2026-11]
+  pull_request:
+
+jobs:
+  validate-python-and-stores:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install requirements
+        run: |
+          pip install -r test-shops/requirements.txt httpx beautifulsoup4 pytest
+      - name: Compile Python sources
+        run: |
+          python -m compileall -q test-shops backend/app backend/benchmark_catalog.py
+      - name: Test simulated stores
+        run: pytest -q tests/test_simulated_stores.py
+
+  validate-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Build Next.js
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run build

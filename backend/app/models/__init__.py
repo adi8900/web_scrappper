@@ -1,2 +1,2 @@
 from app.models.user import User
-from app.models.price_history import PriceHistory
+from app.models.search_history import SearchHistory
