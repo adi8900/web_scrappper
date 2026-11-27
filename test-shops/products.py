@@ -47,6 +47,12 @@ CATALOG = [
     {"id": 13, "sku": "MSI-B650-TOMAHAWK", "name": "MSI MAG B650 TOMAHAWK WIFI",
      "category": "Płyta główna", "specs": {"Gniazdo": "AM5", "Chipset": "AMD B650", "Pamięć": "DDR5", "Format": "ATX", "Łączność": "Wi-Fi 6E"},
      "source_url": "https://www.msi.com/Motherboard/MAG-B650-TOMAHAWK-WIFI/Specification", "base_price": 849},
+    {"id": 14, "sku": "CORSAIR-CP-9020262-EU", "name": "Corsair RM750e 750W 80 PLUS Gold",
+     "category": "Zasilacz", "specs": {"Moc": "750 W", "Certyfikat": "80 PLUS Gold", "Standard": "ATX 3.1", "Okablowanie": "Modularne", "Part number": "CP-9020262-EU"},
+     "source_url": "https://www.corsair.com/ww/en/p/psu/CP-9020262-EU/rme-series-rm750e-fully-modular-low-noise-atx-power-supply-cp-9020262-eu", "base_price": 489},
+    {"id": 15, "sku": "BEQUIET-PP12M-750", "name": "be quiet! Pure Power 12 M 750W",
+     "category": "Zasilacz", "specs": {"Moc": "750 W", "Okablowanie": "Modularne", "Złącze GPU": "12VHPWR", "Linie 12 V": "2"},
+     "source_url": "https://www.bequiet.com/en/powersupply/4166", "base_price": 499},
 ]
 
 SHOP_MARKUP = {"a": 1.00, "b": 0.97, "c": 1.04}
