@@ -1,82 +1,22 @@
-import asyncio
-
+"""Task dispatch wrappers: execution happens only in the remote worker repository."""
 from app.workers.celery_app import celery
 
-from app.scrapers.xkom import (
-    search_xkom_and_get_price
-)
 
-from app.scrapers.morele import (
-    search_morele_and_get_price
-)
-
-from app.scrapers.mediaexpert import (
-    search_mediaexpert_and_get_price
-)
-
-@celery.task(
-    name="app.workers.tasks.scrape_xkom",
-    queue="xkom"
-)
-def scrape_xkom(query):
-
-    return asyncio.run(
-        search_xkom_and_get_price(
-            query
-        )
+def dispatch_search(shop, query, method):
+    if shop not in ("a", "b", "c"):
+        raise ValueError("Unknown test shop")
+    return celery.send_task(
+        "app.workers.tasks.scrape_shop",
+        args=[shop, query, method],
+        queue="scraping",
     )
 
 
-
-@celery.task(
-    name="app.workers.tasks.scrape_morele",
-    queue="morele"
-)
-def scrape_morele(query):
-
-    return asyncio.run(
-        search_morele_and_get_price(
-            query
-        )
-    )
-
-
-
-@celery.task(
-    name="app.workers.tasks.scrape_media",
-    queue="mediaexpert"
-)
-def scrape_media(query):
-
-    return asyncio.run(
-        search_mediaexpert_and_get_price(
-            query
-        )
-    )
-
-@celery.task(
-    name="app.workers.tasks.scrape_shop_a",
-    queue="shop_a"
-)
-def scrape_shop_a(query):
-    raise RuntimeError(
-        "Zadanie scrape_shop_a musi zostać wykonane przez zdalny worker"
-    )
-
-@celery.task(
-    name="app.workers.tasks.scrape_shop_b",
-    queue="shop_b"
-)
-def scrape_shop_b(query):
-    raise RuntimeError(
-        "Zadanie scrape_shop_b musi zostać wykonane przez zdalny worker"
-    )
-
-@celery.task(
-    name="app.workers.tasks.scrape_shop_c",
-    queue="shop_c"
-)
-def scrape_shop_c(query):
-    raise RuntimeError(
-        "Zadanie scrape_shop_c musi zostać wykonane przez zdalny worker"
+def dispatch_catalog(shop, page, method="html"):
+    if shop not in ("a", "b", "c"):
+        raise ValueError("Unknown test shop")
+    return celery.send_task(
+        "app.workers.tasks.scrape_catalog",
+        args=[shop, page, method],
+        queue="catalog",
     )
